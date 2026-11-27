@@ -22,7 +22,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: test123
-      POSTGRES_DB: rest_api_test_
+      POSTGRES_DB: rest_api_test
 
     ports:
       - "127.0.0.1:5435:5432"
