@@ -1,0 +1,84 @@
+name: Project Manager API - CI
+
+on:
+  push:
+    branches: [main, develop]
+
+  pull_request:
+    branches: [main, develop]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_test_password
+          POSTGRES_DB: rest_api_test
+
+        ports:
+          - 5435:5432
+
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rest_api_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Create testing environment
+        run: |
+          cat > .env.test << 'EOF'
+          NODE_ENV=test
+          PORT=3001
+          DB_HOST=127.0.0.1
+          DB_PORT=5435
+          DB_USER=postgres
+          DB_PASSWORD=ci_test_password
+          DB_NAME=rest_api_test
+          DB_SYNCHRONIZE=true
+          DB_SSL=false
+          EOF
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-manager-api
+          path: |
+            dist/
+            package.json
+            package-lock.json
+          retention-days: 7
+          if-no-files-found: error
